@@ -1,0 +1,10 @@
+version: "2"
+sql:
+  - schema: "sql/schema.sql"      # Onde está o seu CREATE TABLE
+    queries: "sql/queries/"    # Onde estarão seus SELECTs, INSERTs, etc.
+    engine: "postgresql"
+    gen:
+      go:
+        package: "db"             # Nome do pacote gerado
+        out: "internal/infra/db"  # Onde o código vai morar
+        sql_package: "pgx/v5"     # IMPORTANTE: Usar o driver que você já gosta
