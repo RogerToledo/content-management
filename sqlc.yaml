@@ -8,3 +8,15 @@ sql:
         package: "db"             # Nome do pacote gerado
         out: "internal/infra/db"  # Onde o código vai morar
         sql_package: "pgx/v5"     # IMPORTANTE: Usar o driver que você já gosta
+        emit_interface: true      # Gera interfaces para facilitar testes
+        emit_json_tags: true      # Gera tags JSON para os structs
+        overrides:
+          - db_type: "uuid"   # Sobrescreve o tipo do ID para usar UUID
+            go_type: "github.com/google/uuid.UUID"
+          - db_type: "varchar" # Sobrescreve o tipo de string para usar string normal
+            go_type: "string"
+          - column: "account.name"
+            go_type: "string"  
+          - column: "account.active"
+            go_type: "bool"
+          

@@ -41,7 +41,8 @@ func (h *userHandler) CreateUser(w http.ResponseWriter, r *http.Request) {
 	validate := validator.New()
 
 	if err := validate.Struct(user); err != nil {
-		if validationErrors, ok := errors.AsType[validator.ValidationErrors](err); ok {
+		var validationErrors validator.ValidationErrors
+		if errors.As(err, &validationErrors) {
 			report := make(map[string]string)
 
 			for _, e := range validationErrors {
@@ -76,7 +77,8 @@ func (h *userHandler) UpdateUser(w http.ResponseWriter, r *http.Request) {
 
 	validate := validator.New()
 	if err := validate.Struct(user); err != nil {
-		if validationErrors, ok := errors.AsType[validator.ValidationErrors](err); ok {
+		var validationErrors validator.ValidationErrors
+		if errors.As(err, &validationErrors) {
 			report := make(map[string]string)
 
 			for _, e := range validationErrors {
@@ -108,7 +110,8 @@ func (h *userHandler) DeleteUser(w http.ResponseWriter, r *http.Request) {
 	validate := validator.New()
 
 	if err := validate.Var(idRequest, "required,uuid"); err != nil {
-		if validationErrors, ok := errors.AsType[validator.ValidationErrors](err); ok {
+		var validationErrors validator.ValidationErrors
+		if errors.As(err, &validationErrors) {
 			report := make(map[string]string)
 
 			for _, e := range validationErrors {
@@ -138,7 +141,8 @@ func (h *userHandler) FindUser(w http.ResponseWriter, r *http.Request) {
 	validate := validator.New()
 
 	if err := validate.Var(idRequest, "required,uuid"); err != nil {
-		if validationErrors, ok := errors.AsType[validator.ValidationErrors](err); ok {
+		var validationErrors validator.ValidationErrors
+		if errors.As(err, &validationErrors) {
 			report := make(map[string]string)
 
 			for _, e := range validationErrors {

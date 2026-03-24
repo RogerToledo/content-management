@@ -7,6 +7,7 @@ import (
 
 	"github.com/go/content-management/apperr"
 	"github.com/go/content-management/internal/domain"
+	"github.com/go/content-management/internal/infra/db"
 	"github.com/go/content-management/internal/models"
 	"github.com/go/content-management/internal/pkg/identity"
 	"github.com/jackc/pgx/v5"
@@ -14,19 +15,22 @@ import (
 )
 
 type UserRepository interface {
-	CreateUser(ctx context.Context, user domain.User) error
+	CreateUser(ctx context.Context, u domain.User) error
 	UpdateUser(ctx context.Context, user domain.User) error
-	DeleteUser(ctx context.Context, id string) error
-	FindUserByID(ctx context.Context, id string) (domain.User, error)
+	DeleteUser(ctx context.Context, idString string) error
+	FindUserByID(ctx context.Context, idString string) (domain.User, error)
 	FindAll(ctx context.Context) ([]domain.User, error)
 }
 
 type userRepository struct {
-	db *pgxpool.Pool
+	database *pgxpool.Pool
+	q        *db.Queries
 }
 
-func NewUserRepository(db *pgxpool.Pool) *userRepository {
-	return &userRepository{db}
+func NewUserRepository(database *pgxpool.Pool) *userRepository {
+	return &userRepository{
+		database: database,
+		q:        db.New(database),}
 }
 
 func (r *userRepository) CreateUser(ctx context.Context, u domain.User) error {
@@ -37,7 +41,14 @@ func (r *userRepository) CreateUser(ctx context.Context, u domain.User) error {
 
 	m.Active = true
 
-	_, err = r.db.Exec(ctx, CreateUserQuery, m.Id, m.Username, m.Email, m.Password, m.Name, m.Active)
+	err = r.q.CreateUser(ctx, db.CreateUserParams{
+		ID:       m.Id,
+		UserName: m.Username,
+		Email:    m.Email,
+		Password: m.Password,
+		Name:     m.Name,
+		Active:   m.Active,
+	})
 	if err != nil {
 		return err
 	}
@@ -51,7 +62,11 @@ func (r *userRepository) UpdateUser(ctx context.Context, user domain.User) error
 		return err
 	}
 
-	_, err = r.db.Exec(ctx, UpdateUserQuery, m.Username, m.Email, m.Password, m.Name, m.Active, m.Id)
+	err = r.q.UpdateUser(ctx, db.UpdateUserParams{
+		ID:       m.Id,
+		Email:    m.Email,
+		Name:     m.Name,
+	})
 	if err != nil {
 		return err
 	}
@@ -69,7 +84,7 @@ func (r *userRepository) DeleteUser(ctx context.Context, idString string) error 
 		return apperr.MessageError(fmt.Sprintf(apperr.ErrIsNotFound, apperr.UserPT), err)
 	}
 
-	_, err = r.db.Exec(ctx, DeleteUserQuery, id)
+	err = r.q.DeleteUser(ctx, id)
 	if err != nil {
 		return apperr.MessageError(apperr.ErrInternalServerError, err)
 	}
@@ -83,37 +98,39 @@ func (r *userRepository) FindUserByID(ctx context.Context, idString string) (dom
 		return domain.User{}, err
 	}
 
-	var m models.UserModel
-
-	err = r.db.QueryRow(ctx, FindUserQuery, id).Scan(
-		m.Id, m.Username, m.Email, m.Active, m.Name,
-	)
+	row, err := r.q.FindUser(ctx, id)
 	if err != nil {
 		return domain.User{}, apperr.MessageError(apperr.ErrInternalServerError, err)
+	}
+
+	m := models.UserModel{
+		Id:       row.ID,
+		Username: row.UserName,
+		Email:    row.Email,
+		Name:     row.Name,
+		Active:   row.Active,
 	}
 
 	return m.ToDomain(), nil
 }
 
 func (r *userRepository) FindAll(ctx context.Context) ([]domain.User, error) {
-	rows, err := r.db.Query(ctx, FindAllUserQuery)
+	rows, err := r.q.FindUsers(ctx)
 	if err != nil {
 		return []domain.User{}, apperr.MessageError(apperr.ErrInternalServerError, err)
 	}
-	defer rows.Close()
+	
 
 	var users []domain.User
 
-	for rows.Next() {
-		var m models.UserModel
-		err := rows.Scan(
-			&m.Id, &m.Username, &m.Email, &m.Name, &m.Active,
-		)
-		if err != nil {
-			return []domain.User{}, apperr.MessageError(apperr.ErrInternalServerError, err)
-		}
-
-		users = append(users, m.ToDomain())
+	for _, row := range rows {
+		users = append(users, domain.User{
+			Id:       row.ID.String(),
+			Username: row.UserName,
+			Email:    row.Email,
+			Name:     row.Name,
+			Active:   row.Active,
+		})
 	}
 
 	return users, nil
